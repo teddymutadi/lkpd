@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LKPD Fikih XI</title>
+<style>
+body {background:#001f4d;color:black;font-family:Arial;padding:20px;}
+.container{background:#add8e6;border-radius:12px;padding:20px;max-width:700px;margin:auto;}
+textarea{width:100%;background:white;color:black;border:1px solid #ccc;border-radius:8px;padding:10px;resize:none;}
+button{background:#0047b3;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="container">
+<h2 style="text-align:center;">LEMBAR KEGIATAN PESERTA DIDIK</h2>
+<h3 style="text-align:center;">MATA PELAJARAN FIKIH MAN 1 KUDUS</h3>
+
+<label>Nama:</label><textarea id="nama" rows="2"></textarea><br><br>
+<label>Kelas:</label><textarea id="kelas" rows="1"></textarea><br><br>
+<label>Jurusan:</label><textarea id="jurusan" rows="1"></textarea><br><br>
+<label>Madrasah:</label><textarea id="madrasah" rows="1"></textarea><br><br>
+
+<h3>TUGAS 1</h3>
+<p>Lihatlah video ini: <a href="https://www.youtube.com/watch?v=78XbA0aOCUE" target="_blank" style="color:black;">Klik di sini</a>. 
+Diskusilah dalam kelompokmu untuk menemukan 5 hal baik dalam video tersebut</p>
+
+<h3>HASIL DISKUSI</h3>
+<p>Tuliskan 5 hal baik dalam video tersebut yang merupakan hasil diskusimu di sini</p>
+<textarea id="diskusi" rows="6"></textarea><br><br>
+
+<h3>PEMECAHAN MASALAH</h3>
+<p>Ahmad sedang mengendarai sepeda motor dengan kecepatan tinggi di jalan raya. Tiba-tiba, seorang pejalan kaki menyeberang tanpa melihat kiri dan kanan. Ahmad berusaha menghindar, tetapi malah menabrak orang tersebut hingga meninggal dunia.
+Pertanyaan:
+Termasuk jenis pembunuhan apakah peristiwa ini menurut hukum Islam (ʿamd, syibh al-ʿamd, atau khaṭa’)?
+Apa konsekuensi hukum (diyat, kafarat, atau lainnya) yang harus dipikul oleh Ahmad?
+Bagaimana hikmah dari ketentuan syariat ini terhadap kehati-hatian dalam berkendara?
+</p>
+<textarea id="pemecahan" rows="10"></textarea><br><br>
+
+<button onclick="kirim()">KIRIM</button>
+<p id="status"></p>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzb0DXc-eCErnHRdpCY0PJDJpxfSMgBivxsSBOuSqGiD3sxg6_h3JITcWolqHZCy5dyJQ/exec";
+
+function kirim() {
+  document.getElementById("status").innerText = "Menyimpan...";
+  const data = {
+    nama: document.getElementById("nama").value,
+    kelas: document.getElementById("kelas").value,
+    jurusan: document.getElementById("jurusan").value,
+    madrasah: document.getElementById("madrasah").value,
+    diskusi: document.getElementById("diskusi").value,
+    pemecahan: document.getElementById("pemecahan").value
+  };
+
+  fetch(SCRIPT_URL, {method: "POST", body: new URLSearchParams(data)})
+    .then(r => r.text())
+    .then(() => document.getElementById("status").innerText = "✅ Data hasil diskusi dalam kelompokmu telah tersimpan di Google Sheet.")
+    .catch(() => document.getElementById("status").innerText = "❌ Gagal koneksi.");
+}
+</script>
+</body>
+</html>
