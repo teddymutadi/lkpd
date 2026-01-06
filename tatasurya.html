@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi 3D Tata Surya Interaktif</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; }
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        .controls-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255,255,255,0.7);
+            font-size: 0.9rem;
+            pointer-events: none;
+        }
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            max-width: 320px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+        button {
+            pointer-events: auto;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        button:hover {
+            transform: scale(1.02);
+            filter: brightness(1.1);
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        .label {
+            position: absolute;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            background: rgba(0,0,0,0.6);
+            padding: 4px 10px;
+            border-radius: 20px;
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+            white-space: nowrap;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        #loading-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: black;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+        <p>Memuat Alam Semesta...</p>
+    </div>
+
+    <div id="ui-overlay">
+        <h1 class="text-3xl font-bold mb-1">Tata Surya 3D</h1>
+        <p class="text-blue-300 font-medium">Media Belajar Astronomi Interaktif</p>
+    </div>
+
+    <div id="info-panel">
+        <h2 class="text-xl font-bold mb-3 border-b border-gray-600 pb-2 flex items-center gap-2">
+            <span class="text-yellow-400">★</span> Pemandu Suara
+        </h2>
+        <p class="text-sm mb-4 text-gray-300 leading-relaxed">
+            Klik tombol di bawah untuk mendengarkan Kakak menjelaskan sistem tata surya kita dalam Bahasa Indonesia.
+        </p>
+        <button onclick="window.startAudioTour()" id="audioBtn" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-3 shadow-lg">
+            <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+            <span id="btn-text">Dengarkan Penjelasan</span>
+        </button>
+        <div id="status-text" class="mt-4 text-xs font-medium text-center tracking-wide uppercase text-blue-400"></div>
+    </div>
+
+    <div class="controls-hint">
+        🖱️ Putar: Klik Kiri | 🔍 Zoom: Scroll | ↔️ Geser: Klik Kanan
+    </div>
+
+    <!-- Import Map for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/examples/jsm/controls/OrbitControls": "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+
+        // Planet Data Configuration
+        // Note: size is enlarged for better visibility for children
+        const planetsData = [
+            { name: "Merkurius", color: 0xAAAAAA, size: 5, distance: 60, speed: 0.015, rotSpeed: 0.01, clockwise: false, info: "Merkurius adalah planet terkecil dan paling dekat dengan Matahari. Ia bergerak sangat cepat mengelilingi Matahari." },
+            { name: "Venus", color: 0xFFD700, size: 8, distance: 90, speed: 0.01, rotSpeed: 0.005, clockwise: true, info: "Venus adalah planet paling panas! Uniknya, Venus berputar mengelilingi Matahari searah jarum jam, berbeda dengan Bumi." },
+            { name: "Bumi", color: 0x2271B3, size: 8.5, distance: 130, speed: 0.008, rotSpeed: 0.02, clockwise: false, info: "Ini adalah rumah kita, Bumi! Satu-satunya planet yang diketahui memiliki kehidupan dan air yang melimpah." },
+            { name: "Mars", color: 0xFF4500, size: 6, distance: 170, speed: 0.006, rotSpeed: 0.018, clockwise: false, info: "Mars si Planet Merah. Di sana ada gunung berapi raksasa dan debu berwarna merah seperti karat." },
+            { name: "Jupiter", color: 0xFFA500, size: 18, distance: 230, speed: 0.004, rotSpeed: 0.04, clockwise: false, info: "Jupiter adalah raja para planet karena ukurannya yang sangat besar. Ia adalah raksasa gas yang megah." },
+            { name: "Saturnus", color: 0xEEE8AA, size: 15, distance: 300, speed: 0.002, rotSpeed: 0.038, clockwise: false, hasRings: true, info: "Saturnus terkenal karena cincinnya yang sangat indah dan berkilau, terbuat dari es dan debu." },
+            { name: "Uranus", color: 0xAFEEEE, size: 11, distance: 360, speed: 0.0015, rotSpeed: 0.03, clockwise: true, info: "Uranus adalah raksasa es yang dingin. Seperti Venus, Uranus juga berevolusi searah jarum jam." },
+            { name: "Neptunus", color: 0x1E90FF, size: 10.5, distance: 410, speed: 0.001, rotSpeed: 0.032, clockwise: false, info: "Neptunus adalah planet terjauh. Di sana sangat dingin dan memiliki angin yang bertiup sangat kencang." }
+        ];
+
+        let scene, camera, renderer, controls;
+        let planets = [];
+        let sun;
+
+        function init() {
+            // Scene & Camera
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
+            camera.position.set(300, 400, 600); // Higher viewpoint to see orbits clearly
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxDistance = 2500;
+            controls.minDistance = 100;
+
+            // Lights
+            // Increased ambient light so planets are visible even on the dark side
+            const ambientLight = new THREE.AmbientLight(0x666666); 
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.PointLight(0xffffff, 4, 3000);
+            scene.add(sunLight);
+
+            // Background Stars
+            const starGeometry = new THREE.BufferGeometry();
+            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+            const starVertices = [];
+            for (let i = 0; i < 15000; i++) {
+                const x = (Math.random() - 0.5) * 3000;
+                const y = (Math.random() - 0.5) * 3000;
+                const z = (Math.random() - 0.5) * 3000;
+                starVertices.push(x, y, z);
+            }
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+
+            // Sun (Bigger and Glowing)
+            const sunGeom = new THREE.SphereGeometry(25, 64, 64);
+            const sunMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+            sun = new THREE.Mesh(sunGeom, sunMat);
+            scene.add(sun);
+
+            // Sun Corona Effect (Simple Glow)
+            const coronaGeom = new THREE.SphereGeometry(28, 64, 64);
+            const coronaMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.3 });
+            const corona = new THREE.Mesh(coronaGeom, coronaMat);
+            scene.add(corona);
+
+            // Create Planets
+            planetsData.forEach(data => {
+                // Orbit Line - Made much brighter and clearer
+                const curve = new THREE.EllipseCurve(0, 0, data.distance, data.distance);
+                const points = curve.getPoints(256); // More points for smoother circles
+                const orbitGeom = new THREE.BufferGeometry().setFromPoints(points);
+                const orbitMat = new THREE.LineBasicMaterial({ 
+                    color: 0xFFFFFF, 
+                    transparent: true, 
+                    opacity: 0.6 // Increased opacity for visibility
+                });
+                const orbitLine = new THREE.Line(orbitGeom, orbitMat);
+                orbitLine.rotation.x = Math.PI / 2;
+                scene.add(orbitLine);
+
+                // Planet Group (for orbital rotation)
+                const planetGroup = new THREE.Group();
+                scene.add(planetGroup);
+
+                // Planet Mesh
+                const planetGeom = new THREE.SphereGeometry(data.size, 32, 32);
+                const planetMat = new THREE.MeshStandardMaterial({ 
+                    color: data.color, 
+                    roughness: 0.7, 
+                    metalness: 0.2 
+                });
+                const planetMesh = new THREE.Mesh(planetGeom, planetMat);
+                planetMesh.position.x = data.distance;
+                planetGroup.add(planetMesh);
+
+                // Saturn's Rings
+                if (data.hasRings) {
+                    const ringGeom = new THREE.RingGeometry(data.size + 2, data.size + 8, 64);
+                    const ringMat = new THREE.MeshBasicMaterial({ 
+                        color: 0x887766, 
+                        side: THREE.DoubleSide, 
+                        transparent: true, 
+                        opacity: 0.5 
+                    });
+                    const ring = new THREE.Mesh(ringGeom, ringMat);
+                    ring.rotation.x = Math.PI / 2.2;
+                    planetMesh.add(ring);
+                }
+
+                // Create Label
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'label';
+                labelDiv.textContent = data.name;
+                document.body.appendChild(labelDiv);
+
+                planets.push({
+                    mesh: planetMesh,
+                    group: planetGroup,
+                    data: data,
+                    angle: Math.random() * Math.PI * 2,
+                    label: labelDiv
+                });
+            });
+
+            document.getElementById('loading-screen').style.display = 'none';
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            planets.forEach(p => {
+                // Revolution logic
+                const direction = p.data.clockwise ? -1 : 1;
+                p.angle += p.data.speed * direction * 0.5; // Scaled for smoother visual
+                p.group.rotation.y = p.angle;
+
+                // Self rotation
+                p.mesh.rotation.y += p.data.rotSpeed;
+
+                // Update Label CSS Position
+                const vector = new THREE.Vector3();
+                p.mesh.getWorldPosition(vector);
+                vector.project(camera);
+
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+
+                p.label.style.left = `${x}px`;
+                p.label.style.top = `${y - (p.data.size * 2)}px`;
+                
+                // Frustum culling for labels
+                if(vector.z > 1) {
+                    p.label.style.opacity = '0';
+                } else {
+                    p.label.style.opacity = '1';
+                }
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // --- Audio Tour Logic ---
+        let isSpeaking = false;
+        window.startAudioTour = function() {
+            if (isSpeaking) {
+                window.speechSynthesis.cancel();
+                isSpeaking = false;
+                updateUIState(false);
+                return;
+            }
+
+            const introText = "Halo adik-adik! Mari kita menjelajahi sistem tata surya kita yang indah. Di pusat sistem ini ada Matahari yang sangat panas. ";
+            const planetTexts = planetsData.map(p => {
+                let dirDesc = p.clockwise ? "searah jarum jam" : "berlawanan arah jarum jam";
+                return `Selanjutnya adalah ${p.name}. ${p.info} ${p.name} berputar mengelilingi Matahari secara ${dirDesc}. `;
+            }).join(" ");
+            
+            const closing = "Keren sekali ya ciptaan Tuhan ini. Jangan lelah belajar tentang angkasa luar ya!";
+            const fullText = introText + planetTexts + closing;
+            
+            const utterance = new SpeechSynthesisUtterance(fullText);
+            utterance.lang = 'id-ID';
+            utterance.rate = 0.9;
+            utterance.pitch = 1.1; 
+
+            // Find best Indonesian voice
+            const voices = window.speechSynthesis.getVoices();
+            const idVoice = voices.find(v => v.lang.startsWith('id') && (v.name.includes('Indira') || v.name.includes('Google') || v.name.includes('Gadis')));
+            if (idVoice) utterance.voice = idVoice;
+
+            utterance.onstart = () => {
+                isSpeaking = true;
+                updateUIState(true);
+            };
+
+            utterance.onend = () => {
+                isSpeaking = false;
+                updateUIState(false);
+            };
+
+            window.speechSynthesis.speak(utterance);
+        };
+
+        function updateUIState(speaking) {
+            const btn = document.getElementById('audioBtn');
+            const status = document.getElementById('status-text');
+            const btnText = document.getElementById('btn-text');
+            const icon = document.getElementById('play-icon');
+
+            if (speaking) {
+                btn.classList.replace('from-blue-600', 'from-red-600');
+                btn.classList.replace('to-indigo-600', 'to-pink-600');
+                btnText.innerText = "Berhenti Mendengarkan";
+                status.innerText = "🔊 Sedang Menjelaskan...";
+                icon.innerHTML = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
+            } else {
+                btn.classList.replace('from-red-600', 'from-blue-600');
+                btn.classList.replace('to-pink-600', 'to-indigo-600');
+                btnText.innerText = "Dengarkan Penjelasan";
+                status.innerText = "";
+                icon.innerHTML = '<path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>';
+            }
+        }
+
+        // Initialize
+        init();
+        
+        // Ensure voices are loaded for some browsers
+        window.speechSynthesis.onvoiceschanged = () => { console.log("Voices loaded"); };
+
+    </script>
+</body>
+</html>
