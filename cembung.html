@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi 3D Lensa Cembung - Media Pembelajaran IPA</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #canvas-container { width: 100%; height: 100vh; background: radial-gradient(circle, #1a202c 0%, #000000 100%); }
+        .ui-overlay { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
+        .ui-overlay-right { position: absolute; top: 20px; right: 20px; z-index: 10; pointer-events: none; }
+        .ui-card { pointer-events: auto; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 20px; color: white; width: 320px; }
+        .slider-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: 600; }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #4f46e5; }
+        .info-panel { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); text-align: center; width: 80%; pointer-events: none; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; margin: 0 5px; }
+        .badge-blue { background: #3b82f6; }
+        .badge-purple { background: #8b5cf6; }
+        #narrator-status { font-style: italic; color: #cbd5e1; margin-top: 10px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div class="ui-overlay">
+    <div class="ui-card shadow-2xl">
+        <h1 class="text-xl font-bold mb-4 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            Simulasi Lensa Cembung
+        </h1>
+        
+        <div class="mb-6">
+            <div class="slider-label">
+                <span>Jarak Lilin (s)</span>
+                <span id="s-val">40 cm</span>
+            </div>
+            <input type="range" id="object-dist" min="5" max="150" value="60">
+        </div>
+
+        <div class="mb-6">
+            <div class="slider-label">
+                <span>Jarak Fokus (f)</span>
+                <span id="f-val">30 cm</span>
+            </div>
+            <input type="range" id="focal-len" min="10" max="60" value="30">
+        </div>
+
+        <div class="border-t border-white/20 pt-4">
+            <h2 class="font-semibold mb-2 text-indigo-300">Data & Sifat:</h2>
+            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-3 border-b border-white/10 pb-2">
+                <div class="text-gray-400">Jarak Bayangan (s'):</div>
+                <div id="si-val" class="text-right font-mono text-yellow-400">0 cm</div>
+                <div class="text-gray-400">Perbesaran (M):</div>
+                <div id="m-val" class="text-right font-mono text-yellow-400">0x</div>
+            </div>
+            <div class="flex flex-wrap gap-1 mb-2">
+                <span class="badge badge-blue" id="prop-1">Nyata</span>
+                <span class="badge badge-purple" id="prop-2">Terbalik</span>
+                <span class="badge badge-blue" id="prop-3">Diperbesar</span>
+            </div>
+        </div>
+
+        <button id="voice-btn" class="mt-2 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.983 5.983 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.983 3.983 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd" />
+            </svg>
+            Jelaskan Fenomena
+        </button>
+        <p id="narrator-status" class="mt-2">Klik untuk penjelasan suara.</p>
+    </div>
+</div>
+
+<div class="ui-overlay-right">
+    <div class="ui-card shadow-2xl border-indigo-500/30">
+        <h2 class="text-lg font-bold mb-3 flex items-center gap-2 text-indigo-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            Analisis Fisika
+        </h2>
+        
+        <div class="bg-black/30 rounded-lg p-3 mb-4 font-mono text-xs leading-relaxed">
+            <div class="text-indigo-200 mb-1 italic">Langkah Perhitungan:</div>
+            <div>1/s' = 1/f - 1/s</div>
+            <div id="calc-step-1">1/s' = 1/30 - 1/60</div>
+            <div id="calc-step-2">1/s' = (2 - 1) / 60</div>
+            <div class="text-yellow-400 mt-1">s' = <span id="calc-si-val">60.0</span> cm</div>
+            <div class="mt-2 text-indigo-200 italic">Perbesaran:</div>
+            <div>M = |s' / s|</div>
+            <div class="text-yellow-400">M = <span id="calc-m-val">1.00</span>x</div>
+        </div>
+
+        <div class="text-sm">
+            <div id="explain-title" class="font-bold text-indigo-300 mb-1">Kenapa Nyata?</div>
+            <p id="explain-text" class="text-gray-300 leading-tight">
+                Karena s > f, sinar-sinar cahaya akan benar-benar bertemu (konvergen) di belakang lensa.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="info-panel">
+    <div id="properties" class="bg-black/50 backdrop-blur text-white px-6 py-3 rounded-full inline-block border border-white/10">
+        <span class="badge badge-blue" id="prop-1">Nyata</span>
+        <span class="badge badge-purple" id="prop-2">Terbalik</span>
+        <span class="badge badge-blue" id="prop-3">Diperbesar</span>
+    </div>
+    <p class="text-white/60 text-xs mt-3">Gunakan Mouse Scroll untuk Zoom, Klik Kanan/Kiri untuk Putar</p>
+</div>
+
+<script>
+    // --- THREE.JS SETUP ---
+    let scene, camera, renderer, controls;
+    let lens, candle, candleImage, flame, flameImage;
+    let opticalAxis, rays = [];
+    let fPoints = [], f2Points = [];
+
+    // Constants & Variables
+    const FOCAL_CONST = 30;
+    let s = 60; // Object distance
+    let f = 30; // Focal length
+    let si = 0; // Image distance
+    let m = 0;  // Magnification
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a0c);
+        scene.fog = new THREE.Fog(0x0a0a0c, 100, 1000);
+
+        camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(100, 100, 250);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0xffaa00, 1.5, 300);
+        pointLight.position.set(0, 50, 0);
+        scene.add(pointLight);
+
+        // Ground Plane (Optical Table)
+        const gridHelper = new THREE.GridHelper(2000, 100, 0x444444, 0x222222);
+        gridHelper.position.y = -50.1;
+        scene.add(gridHelper);
+
+        // Optical Axis
+        const axisGeom = new THREE.CylinderGeometry(0.5, 0.5, 1000, 8);
+        const axisMat = new THREE.MeshPhongMaterial({ color: 0x666666, transparent: true, opacity: 0.5 });
+        opticalAxis = new THREE.Mesh(axisGeom, axisMat);
+        opticalAxis.rotation.z = Math.PI / 2;
+        scene.add(opticalAxis);
+
+        // Lens (Lensa Cembung Realistik)
+        const lensRadius = 40;
+        const lensMaxThickness = 12; // Lebih tebal agar kecembungan tampak jelas
+        
+        // Membuat profil kurva untuk lensa cembung (Biconvex)
+        // Kita membuat setengah irisan (cross-section) yang diputar (lathe)
+        const points = [];
+        const segments = 20;
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments; // 0 to 1
+            // Menentukan radius dari pusat (0 ke lensRadius)
+            const r = t * lensRadius;
+            // Menentukan ketebalan di titik r menggunakan rumus lingkaran (sphere segment)
+            // y = sqrt(R^2 - r^2) - offset
+            // Sederhananya menggunakan kurva parabola untuk visualisasi yang "wow"
+            const h = (1 - (r * r) / (lensRadius * lensRadius)) * lensMaxThickness;
+            
+            // Kita butuh dua sisi (depan dan belakang)
+            // Namun LatheGeometry bekerja dengan memutar garis di satu sisi sumbu
+            // Jadi kita buat profil yang melengkung dari (0, h) ke (radius, 0)
+            points.push(new THREE.Vector2(r, h));
+        }
+        // Tambahkan profil bawah agar tertutup sempurna (cermin dari profil atas)
+        for (let i = segments; i >= 0; i--) {
+            const t = i / segments;
+            const r = t * lensRadius;
+            const h = -(1 - (r * r) / (lensRadius * lensRadius)) * lensMaxThickness;
+            points.push(new THREE.Vector2(r, h));
+        }
+        
+        const lensGeom = new THREE.LatheGeometry(points, 64);
+        const lensMat = new THREE.MeshPhysicalMaterial({
+            color: 0xddeeff,
+            transparent: true,
+            opacity: 0.6,
+            transmission: 0.98,
+            thickness: 5,
+            roughness: 0.01,
+            metalness: 0.05,
+            ior: 1.52, // Indeks bias kaca standard
+            side: THREE.DoubleSide,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0.05,
+            reflectivity: 0.5
+        });
+        lens = new THREE.Mesh(lensGeom, lensMat);
+        // Putar agar tegak lurus dengan sumbu optik (X)
+        // Karena Lathe dibuat di sumbu Y, rotasi Z 90 derajat akan membuatnya menghadap sumbu X
+        lens.rotation.z = Math.PI / 2; 
+        scene.add(lens);
+
+        // Penambahan frame lensa agar lebih terlihat nyata
+        const frameGeom = new THREE.TorusGeometry(lensRadius, 3, 16, 100);
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.9, roughness: 0.1 });
+        const frame = new THREE.Mesh(frameGeom, frameMat);
+        frame.rotation.y = Math.PI / 2;
+        scene.add(frame);
+
+        // Penyangga Lensa (Stand)
+        const standGeom = new THREE.CylinderGeometry(2, 2, 50, 16);
+        const stand = new THREE.Mesh(standGeom, frameMat);
+        stand.position.y = -75;
+        scene.add(stand);
+
+        // Focal Points Labels
+        createPointMarkers();
+
+        // Candle (Object)
+        createCandle();
+        
+        // Image of Candle
+        createImageCandle();
+
+        // Rays
+        initRays();
+
+        window.addEventListener('resize', onWindowResize, false);
+        animate();
+    }
+
+    function createTextSprite(text, color) {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 128;
+        canvas.height = 128;
+        context.font = 'Bold 80px Arial';
+        context.fillStyle = color;
+        context.textAlign = 'center';
+        context.fillText(text, 64, 90);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(spriteMaterial);
+        sprite.scale.set(20, 20, 1);
+        return sprite;
+    }
+
+    function createPointMarkers() {
+        const markerGeom = new THREE.SphereGeometry(1.5, 16, 16);
+        const fMat = new THREE.MeshBasicMaterial({ color: 0xff3333 });
+        const f2Mat = new THREE.MeshBasicMaterial({ color: 0x33ff33 });
+
+        for (let i = 0; i < 2; i++) {
+            const fP = new THREE.Mesh(markerGeom, fMat);
+            const f2P = new THREE.Mesh(markerGeom, f2Mat);
+            
+            // Add labels
+            const fLabel = createTextSprite('F', '#ff3333');
+            const f2Label = createTextSprite('2F', '#33ff33');
+            fLabel.position.y = -15;
+            f2Label.position.y = -15;
+            fP.add(fLabel);
+            f2P.add(f2Label);
+
+            fPoints.push(fP);
+            f2Points.push(f2P);
+            scene.add(fP);
+            scene.add(f2P);
+        }
+    }
+
+    function createCandle() {
+        const group = new THREE.Group();
+        
+        // Wax
+        const waxGeom = new THREE.CylinderGeometry(4, 4, 30, 16);
+        const waxMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        const wax = new THREE.Mesh(waxGeom, waxMat);
+        wax.position.y = 15;
+        group.add(wax);
+
+        // Wick
+        const wickGeom = new THREE.CylinderGeometry(0.5, 0.5, 4, 8);
+        const wickMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+        const wick = new THREE.Mesh(wickGeom, wickMat);
+        wick.position.y = 32;
+        group.add(wick);
+
+        // Flame
+        const flameGeom = new THREE.ConeGeometry(2, 6, 16);
+        const flameMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+        flame = new THREE.Mesh(flameGeom, flameMat);
+        flame.position.y = 35;
+        group.add(flame);
+
+        candle = group;
+        scene.add(candle);
+    }
+
+    function createImageCandle() {
+        candleImage = candle.clone();
+        candleImage.children.forEach(child => {
+            child.material = child.material.clone();
+            child.material.transparent = true;
+            child.material.opacity = 0.5;
+        });
+        scene.add(candleImage);
+    }
+
+    function initRays() {
+        // Menggunakan LineBasicMaterial dengan warna yang lebih cerah (seperti laser)
+        const rayMat1 = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 });
+        const rayMat2 = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
+        const rayMat3 = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 2 });
+        
+        for (let i = 0; i < 3; i++) {
+            const geom = new THREE.BufferGeometry();
+            const line = new THREE.Line(geom, [rayMat1, rayMat2, rayMat3][i]);
+            rays.push(line);
+            scene.add(line);
+        }
+        
+        // Menambahkan cahaya tambahan di titik lensa
+        const lensLight = new THREE.PointLight(0x00aaff, 0.5, 100);
+        lensLight.position.set(0, 0, 20);
+        scene.add(lensLight);
+    }
+
+    function updateCalculations() {
+        s = parseInt(document.getElementById('object-dist').value);
+        f = parseInt(document.getElementById('focal-len').value);
+        
+        document.getElementById('s-val').innerText = s + " cm";
+        document.getElementById('f-val').innerText = f + " cm";
+
+        // Lens Formula: 1/f = 1/s + 1/si  => 1/si = 1/f - 1/s => si = (f * s) / (s - f)
+        let si_display = 0;
+        if (s === f) {
+            si = 9999; // Infinity
+            m = 0;
+        } else {
+            si = (f * s) / (s - f);
+            m = -si / s;
+            si_display = si.toFixed(1);
+        }
+
+        // Update UI Calculation Card
+        const commonDiv = lcm(f, s);
+        document.getElementById('calc-step-1').innerText = `1/s' = 1/${f} - 1/${s}`;
+        if (s !== f) {
+            const numF = commonDiv / f;
+            const numS = commonDiv / s;
+            document.getElementById('calc-step-2').innerText = `1/s' = (${numF} - ${numS}) / ${commonDiv}`;
+            document.getElementById('calc-si-val').innerText = si_display;
+            document.getElementById('calc-m-val').innerText = Math.abs(m).toFixed(2);
+        } else {
+            document.getElementById('calc-step-2').innerText = `1/s' = 0`;
+            document.getElementById('calc-si-val').innerText = "∞";
+            document.getElementById('calc-m-val').innerText = "0";
+        }
+
+        // Update markers
+        fPoints[0].position.set(-f, 0, 0); // F1
+        fPoints[1].position.set(f, 0, 0);  // F2
+        f2Points[0].position.set(-2 * f, 0, 0); // 2F1
+        f2Points[1].position.set(2 * f, 0, 0);  // 2F2
+
+        // Update Candle
+        candle.position.x = -s;
+
+        // Update Image
+        if (s === f) {
+            candleImage.visible = false;
+        } else {
+            candleImage.visible = true;
+            candleImage.position.x = si;
+            candleImage.scale.set(Math.abs(m), m, Math.abs(m));
+            // Adjust position for scale
+            candleImage.position.y = 0; 
+        }
+
+        updateRays();
+        updateBadges();
+    }
+
+    function updateRays() {
+        const objTop = 35;
+        const imgTop = objTop * m;
+
+        // Ray 1: Parallel to axis -> through focal point
+        const points1 = [
+            new THREE.Vector3(-s, objTop, 0),
+            new THREE.Vector3(0, objTop, 0),
+        ];
+        if (s > f) {
+            points1.push(new THREE.Vector3(si, imgTop, 0));
+        } else {
+            // Virtual image ray extension
+            points1.push(new THREE.Vector3(f * 2, objTop - ((objTop/f)*f*2), 0));
+            // Back extension
+            rays[0].geometry.setFromPoints([
+                new THREE.Vector3(si, imgTop, 0),
+                new THREE.Vector3(0, objTop, 0),
+                new THREE.Vector3(200, objTop - (objTop/f)*200, 0)
+            ]);
+        }
+        if (s >= f) rays[0].geometry.setFromPoints(points1);
+
+        // Ray 2: Through center of lens
+        const points2 = [
+            new THREE.Vector3(-s, objTop, 0),
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(si > 500 ? 500 : si, si > 500 ? -objTop*(500/s) : imgTop, 0)
+        ];
+        rays[1].geometry.setFromPoints(points2);
+
+        // Ray 3: Through focal point -> parallel to axis
+        let points3 = [];
+        if (s > f) {
+            points3 = [
+                new THREE.Vector3(-s, objTop, 0),
+                new THREE.Vector3(0, imgTop, 0),
+                new THREE.Vector3(si, imgTop, 0)
+            ];
+        } else {
+            // Light goes from object through virtual focus behind it?
+            // Simplified: Ray that seems to come from focus F1
+            points3 = [
+                new THREE.Vector3(-s, objTop, 0),
+                new THREE.Vector3(0, objTop / (1 - s/f), 0),
+                new THREE.Vector3(si, imgTop, 0)
+            ];
+        }
+        rays[2].geometry.setFromPoints(points3);
+    }
+
+    function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+    function lcm(a, b) { return (a * b) / gcd(a, b); }
+
+    function updateBadges() {
+        const p1 = document.getElementById('prop-1');
+        const p2 = document.getElementById('prop-2');
+        const p3 = document.getElementById('prop-3');
+        const expTitle = document.getElementById('explain-title');
+        const expText = document.getElementById('explain-text');
+
+        if (s > f) {
+            p1.innerText = "Nyata";
+            p1.className = "badge badge-blue";
+            p2.innerText = "Terbalik";
+            p2.className = "badge badge-purple";
+            expTitle.innerText = "Kenapa Nyata?";
+            expTitle.className = "font-bold text-indigo-300 mb-1";
+            expText.innerText = "Karena s > f, sinar-sinar cahaya akan benar-benar bertemu (konvergen) di belakang lensa. Bayangan ini dapat ditangkap layar.";
+        } else if (s < f) {
+            p1.innerText = "Maya";
+            p1.className = "badge bg-red-500";
+            p2.innerText = "Tegak";
+            p2.className = "badge bg-orange-500";
+            expTitle.innerText = "Kenapa Maya?";
+            expTitle.className = "font-bold text-red-400 mb-1";
+            expText.innerText = "Karena s < f, sinar-sinar cahaya akan menyebar (divergen). Bayangan terlihat karena mata menangkap perpanjangan sinar tersebut di depan lensa.";
+        } else {
+            p1.innerText = "Tak Hingga";
+            p1.className = "badge bg-gray-600";
+            p2.innerText = "-";
+            expTitle.innerText = "Fokus Utama";
+            expText.innerText = "Benda berada tepat di titik fokus, sehingga sinar bias sejajar dan tidak akan pernah berpotongan.";
+        }
+
+        const absM = Math.abs(m);
+        if (s === f) {
+            p3.innerText = "-";
+        } else if (absM > 1.01) {
+            p3.innerText = "Diperbesar";
+            p3.className = "badge bg-green-500";
+        } else if (absM < 0.99) {
+            p3.innerText = "Diperkecil";
+            p3.className = "badge bg-yellow-600";
+        } else {
+            p3.innerText = "Sama Besar";
+            p3.className = "badge bg-gray-500";
+        }
+    }
+
+    function speakExplanation() {
+        if (!('speechSynthesis' in window)) {
+            alert("Maaf, browser Anda tidak mendukung fitur suara.");
+            return;
+        }
+
+        window.speechSynthesis.cancel();
+
+        let text = "";
+        const absM = Math.abs(m).toFixed(1);
+        
+        if (s > 2 * f) {
+            text = `Lilin berada di luar dua kali jarak fokus. Bayangan yang terbentuk bersifat nyata, terbalik, dan diperkecil. Letaknya berada di antara fokus dan dua kali fokus di belakang lensa.`;
+        } else if (s === 2 * f) {
+            text = `Lilin berada tepat di dua kali jarak fokus. Bayangan yang terbentuk bersifat nyata, terbalik, dan sama besar dengan benda aslinya.`;
+        } else if (s > f && s < 2 * f) {
+            text = `Lilin berada di antara fokus dan dua kali fokus. Bayangan yang terbentuk bersifat nyata, terbalik, dan diperbesar. Bayangan berada di luar dua kali jarak fokus belakang lensa.`;
+        } else if (s === f) {
+            text = `Lilin berada tepat di titik fokus. Sinar-sinar bias akan sejajar, sehingga bayangan terbentuk di jarak tak hingga.`;
+        } else {
+            text = `Lilin berada di antara lensa dan titik fokus, atau Ruang satu. Bayangan yang terbentuk bersifat maya, tegak, dan diperbesar. Bayangan ini terlihat di depan lensa.`;
+        }
+
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'id-ID';
+        
+        // Find Indonesian female voice if available
+        const voices = window.speechSynthesis.getVoices();
+        const indovoice = voices.find(v => v.lang.includes('id') && v.name.toLowerCase().includes('female')) || 
+                        voices.find(v => v.lang.includes('id'));
+        
+        if (indovoice) msg.voice = indovoice;
+        msg.pitch = 1.1;
+        msg.rate = 0.9;
+
+        document.getElementById('narrator-status').innerText = "Sedang menjelaskan...";
+        msg.onend = () => {
+            document.getElementById('narrator-status').innerText = "Klik tombol untuk penjelasan suara.";
+        };
+
+        window.speechSynthesis.speak(msg);
+    }
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        // Subtle flame flicker
+        if (flame) {
+            const scale = 0.9 + Math.random() * 0.2;
+            flame.scale.set(scale, scale, scale);
+        }
+        if (flameImage && candleImage.visible) {
+            const scale = 0.9 + Math.random() * 0.2;
+            // Flame of image might be inverted, scale still works
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    // UI Event Listeners
+    document.getElementById('object-dist').addEventListener('input', updateCalculations);
+    document.getElementById('focal-len').addEventListener('input', updateCalculations);
+    document.getElementById('voice-btn').addEventListener('click', speakExplanation);
+
+    // Initial run
+    init();
+    updateCalculations();
+
+    // Load voices for synthesis
+    window.speechSynthesis.onvoiceschanged = () => {
+        console.log("Voices loaded");
+    };
+
+</script>
+</body>
+</html>
